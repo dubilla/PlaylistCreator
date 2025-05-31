@@ -118,8 +118,8 @@ export default function Home() {
     setNotFoundTracks([]);
 
     try {
-      const res = await fetch("/api/playlist", {
-        method: "PUT",
+      const res = await fetch("/api/spotify-playlist", {
+        method: "POST",
         body: JSON.stringify({
           playlistName,
           playlistDescription,
