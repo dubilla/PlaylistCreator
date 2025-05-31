@@ -2,7 +2,7 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
-import { Song, GeneratedPlaylist, SpotifyPlaylistResponse } from "@/types/playlist";
+import { Song, GeneratedPlaylist } from "@/types/playlist";
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -99,7 +99,7 @@ export default function Home() {
       setSongs(data.songs || []);
       setPlaylistName(data.playlistName || "");
       setPlaylistDescription(data.playlistDescription || "");
-    } catch (error) {
+    } catch {
       alert("Failed to generate playlist. Please try again.");
     } finally {
       setLoading(false);
@@ -137,8 +137,9 @@ export default function Home() {
 
       setPlaylistUrl(data.playlistUrl);
       setNotFoundTracks(data.notFoundTracks || []);
-    } catch (error: any) {
-      alert(error?.message || "Failed to create Spotify playlist");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to create Spotify playlist";
+      alert(errorMessage);
     } finally {
       setCreatingSpotify(false);
     }

@@ -6,7 +6,7 @@ import {
   searchSpotifyTrack,
   addTracksToPlaylist,
 } from "@/lib/spotify";
-import { GeneratedPlaylist, SpotifyPlaylistResponse, OpenAIError } from "@/types/playlist";
+import { GeneratedPlaylist, SpotifyPlaylistResponse } from "@/types/playlist";
 
 // Create playlist in Spotify
 export async function POST(req: NextRequest) {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         } else {
           notFoundTracks.push({ title: song.title, artist: song.artist });
         }
-      } catch (error) {
+      } catch {
         notFoundTracks.push({ title: song.title, artist: song.artist });
       }
     }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     };
 
     return NextResponse.json(response);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Next.js Auth will give us a proper error response
     if (error?.message?.includes("auth")) {
       return NextResponse.json(
