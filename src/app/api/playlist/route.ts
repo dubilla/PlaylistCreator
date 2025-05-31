@@ -15,6 +15,11 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 // Generate playlist using OpenAI
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const { description } = await req.json();
 
   if (!description) {
