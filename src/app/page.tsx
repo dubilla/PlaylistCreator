@@ -2,6 +2,7 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
+import { Song, GeneratedPlaylist, SpotifyPlaylistResponse } from "@/types/playlist";
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -61,7 +62,7 @@ function AuthButton() {
 
 export default function Home() {
   const [description, setDescription] = useState("");
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [playlistName, setPlaylistName] = useState("");
   const [playlistDescription, setPlaylistDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -89,7 +90,7 @@ export default function Home() {
         body: JSON.stringify({ description }),
         headers: { "Content-Type": "application/json" },
       });
-      const data = await res.json();
+      const data = await res.json() as GeneratedPlaylist;
       
       if (!res.ok) {
         throw new Error(data.error || "Failed to generate playlist");
@@ -126,7 +127,7 @@ export default function Home() {
         }),
         headers: { "Content-Type": "application/json" },
       });
-      const data = await res.json();
+      const data = await res.json() as SpotifyPlaylistResponse;
       
       if (!res.ok) {
         console.error("Spotify playlist creation failed:", {
@@ -140,12 +141,16 @@ export default function Home() {
 
       setPlaylistUrl(data.playlistUrl);
       setNotFoundTracks(data.notFoundTracks || []);
-    } catch (error: any) {
-      console.error("Error creating Spotify playlist:", {
-        message: error.message,
-        stack: error.stack,
-      });
-      alert(`Failed to create Spotify playlist: ${error.message}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error creating Spotify playlist:", {
+          message: error.message,
+          stack: error.stack,
+        });
+        alert(`Failed to create Spotify playlist: ${error.message}`);
+      } else {
+        alert("Failed to create Spotify playlist. Please try again.");
+      }
     } finally {
       setCreatingSpotify(false);
     }

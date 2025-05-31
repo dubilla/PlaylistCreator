@@ -9,6 +9,7 @@ import {
   searchSpotifyTrack,
   addTracksToPlaylist,
 } from "@/lib/spotify";
+import { GeneratedPlaylist, Song, SpotifyPlaylistResponse, OpenAIError } from "@/types/playlist";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -48,7 +49,7 @@ Make sure the songs are diverse, recognizable, and flow well together.
 
     const raw = completion.choices[0].message.content?.trim() ?? "{}";
     const cleanJson = raw.replace(/```json\n?|\n?```/g, "").trim();
-    const { playlistName, playlistDescription, songs } = JSON.parse(cleanJson);
+    const { playlistName, playlistDescription, songs } = JSON.parse(cleanJson) as GeneratedPlaylist;
 
     // Ensure playlist name is within limits
     const safePlaylistName = playlistName.slice(0, 30);
@@ -58,8 +59,9 @@ Make sure the songs are diverse, recognizable, and flow well together.
       playlistDescription,
       songs,
     });
-  } catch (error: any) {
-    console.error("Error generating playlist:", error);
+  } catch (error) {
+    const openAIError = error as OpenAIError;
+    console.error("Error generating playlist:", openAIError);
     return NextResponse.json(
       { error: "Failed to generate playlist" },
       { status: 500 }
@@ -74,7 +76,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { playlistName, playlistDescription, songs } = await req.json();
+  const { playlistName, playlistDescription, songs } = await req.json() as GeneratedPlaylist;
 
   if (!playlistName || !playlistDescription || !songs) {
     return NextResponse.json(
@@ -111,7 +113,8 @@ export async function PUT(req: NextRequest) {
           notFoundTracks.push({ title: song.title, artist: song.artist });
         }
       } catch (error) {
-        console.error(`Error searching for track: ${song.title}`, error);
+        const spotifyError = error as OpenAIError;
+        console.error(`Error searching for track: ${song.title}`, spotifyError);
         notFoundTracks.push({ title: song.title, artist: song.artist });
       }
     }
@@ -127,14 +130,17 @@ export async function PUT(req: NextRequest) {
       await addTracksToPlaylist(session, playlist.id, trackUris);
     }
 
-    return NextResponse.json({
+    const response: SpotifyPlaylistResponse = {
       playlistUrl: playlist.external_urls.spotify,
       notFoundTracks,
-    });
-  } catch (error: any) {
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    const spotifyError = error as OpenAIError;
     console.error("Error creating Spotify playlist:", {
-      error: error.message,
-      stack: error.stack,
+      error: spotifyError.message,
+      stack: spotifyError.stack,
       session: {
         hasUser: !!session.user,
         userId: session.user?.id,
@@ -142,12 +148,10 @@ export async function PUT(req: NextRequest) {
       },
     });
     
-    // Return a more detailed error message
-    const errorMessage = error.message || "Failed to create Spotify playlist";
     return NextResponse.json(
       { 
-        error: errorMessage,
-        details: error.stack,
+        error: spotifyError.message || "Failed to create Spotify playlist",
+        details: spotifyError.stack,
       },
       { status: 500 }
     );
