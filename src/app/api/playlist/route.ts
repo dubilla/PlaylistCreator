@@ -2,10 +2,21 @@
 
 import { OpenAI } from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import {
+  createSpotifyPlaylist,
+  searchSpotifyTrack,
+  addTracksToPlaylist,
+} from "@/lib/spotify";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { description } = await req.json();
 
   if (!description) {
@@ -14,12 +25,10 @@ export async function POST(req: NextRequest) {
 
   const prompt = `
 You are an auteur. A music expert who knows just the right thing to put on at the right time.
-You are fluent in jazz, hip-hop, rock, punk, pop — any form of music that has a soul. You're a historian and you can understand the undercurrents that connect different songs into a cohesive tapestry.
-You are a mix CD alchemist, able to mix and match songs that leave the listener impressed with your knowledge of the music.
-You are an encylopedia of lyrics, and you can piece together lyrical connections between songs.
+You are fluent in jazz, hip-hop, rock, punk, pop — any form of music that has a soul. You're a historian and you can understand the undercurrents that connect different songs into a cohesive tapestry.
 
 Given the description: "${description}", generate:
-1. A few sentences describing the playlist for a close friend. Note a few of the songs and how they fit the theme.
+1. A brief description of how you would describe the playlist to a friend
 2. A list of 10-20 songs that match the vibe
 
 Respond with a JSON object containing:
@@ -32,6 +41,7 @@ Make sure the songs are diverse, recognizable, and flow well together.
 `.trim();
 
   try {
+    // Generate playlist with OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
@@ -39,14 +49,52 @@ Make sure the songs are diverse, recognizable, and flow well together.
     });
 
     const raw = completion.choices[0].message.content?.trim() ?? "{}";
-    // Strip any markdown code block formatting
-    const cleanJson = raw.replace(/```json\n?|\n?```/g, '').trim();
+    const cleanJson = raw.replace(/```json\n?|\n?```/g, "").trim();
     const { playlistDescription, songs } = JSON.parse(cleanJson);
 
-    return NextResponse.json({ playlistDescription, songs });
+    // Create Spotify playlist
+    const playlistName = `AI Generated: ${description}`;
+    const playlist = await createSpotifyPlaylist(
+      session,
+      playlistName,
+      playlistDescription
+    );
+
+    // Search for each track and collect URIs
+    const trackUris: string[] = [];
+    const notFoundTracks: { title: string; artist: string }[] = [];
+
+    for (const song of songs) {
+      try {
+        const track = await searchSpotifyTrack(session, song.title, song.artist);
+        if (track) {
+          trackUris.push(`spotify:track:${track.id}`);
+        } else {
+          notFoundTracks.push({ title: song.title, artist: song.artist });
+        }
+      } catch (error) {
+        console.error(`Error searching for track: ${song.title}`, error);
+        notFoundTracks.push({ title: song.title, artist: song.artist });
+      }
+    }
+
+    // Add tracks to playlist
+    if (trackUris.length > 0) {
+      await addTracksToPlaylist(session, playlist.id, trackUris);
+    }
+
+    return NextResponse.json({
+      playlistDescription,
+      songs,
+      playlistUrl: playlist.external_urls.spotify,
+      notFoundTracks,
+    });
   } catch (error: any) {
-    console.error("OpenAI error:", error);
-    return NextResponse.json({ error: "Failed to generate playlist" }, { status: 500 });
+    console.error("Error:", error);
+    return NextResponse.json(
+      { error: "Failed to generate or create playlist" },
+      { status: 500 }
+    );
   }
 }
 

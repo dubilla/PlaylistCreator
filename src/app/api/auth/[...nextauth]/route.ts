@@ -1,4 +1,4 @@
 import { GET, POST } from "@/auth";
 
-// This is the correct route handler for Next.js App Router
+// Export the auth handler directly
 export { GET, POST }; 

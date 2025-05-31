@@ -1,12 +1,10 @@
 import NextAuth from "next-auth";
 import Spotify from "next-auth/providers/spotify";
-
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
+import type { JWT } from "next-auth/jwt";
+import type { Session } from "next-auth";
+import type { Account } from "next-auth";
+console.log("NEXTAUTH_URL", process.env.NEXTAUTH_URL);
+export const authOptions = {
   providers: [
     Spotify({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
@@ -19,15 +17,28 @@ export const {
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }: { token: JWT; account: Account | null; profile?: any }) {
       if (account) {
         token.accessToken = account.access_token;
       }
+      if (profile) {
+        token.id = profile.id;
+      }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       session.accessToken = token.accessToken;
+      if (session.user) {
+        session.user.id = token.id;
+      }
       return session;
     },
   },
-}); 
+  pages: {
+    signIn: "/",
+  },
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+export const { auth, signIn, signOut } = NextAuth(authOptions); 
