@@ -11,8 +11,16 @@ interface SpotifyProfile extends Profile {
   images?: Array<{ url: string }>;
 }
 
-console.log("NEXTAUTH_URL", process.env.NEXTAUTH_URL);
+// Ensure we have the required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET is not set");
+}
+
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error("NEXTAUTH_URL is not set");
+}
 export const authOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Spotify({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
@@ -56,6 +64,11 @@ export const authOptions = {
   },
 };
 
+// Create a single instance of NextAuth
 const handler = NextAuth(authOptions);
+
+// Export the handler for API routes
 export { handler as GET, handler as POST };
-export const { auth, signIn, signOut } = NextAuth(authOptions); 
+
+// Export auth utilities from the same instance
+export const { auth, signIn, signOut } = handler; 

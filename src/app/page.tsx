@@ -100,7 +100,6 @@ export default function Home() {
       setPlaylistName(data.playlistName || "");
       setPlaylistDescription(data.playlistDescription || "");
     } catch (error) {
-      console.error("Error:", error);
       alert("Failed to generate playlist. Please try again.");
     } finally {
       setLoading(false);
@@ -126,31 +125,20 @@ export default function Home() {
           songs,
         }),
         headers: { "Content-Type": "application/json" },
+        // Explicitly include credentials to ensure cookies are sent
+        credentials: "include",
       });
-      const data = await res.json() as SpotifyPlaylistResponse;
+      
+      const data = await res.json();
       
       if (!res.ok) {
-        console.error("Spotify playlist creation failed:", {
-          status: res.status,
-          statusText: res.statusText,
-          error: data.error,
-          details: data.details,
-        });
         throw new Error(data.error || "Failed to create Spotify playlist");
       }
 
       setPlaylistUrl(data.playlistUrl);
       setNotFoundTracks(data.notFoundTracks || []);
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error("Error creating Spotify playlist:", {
-          message: error.message,
-          stack: error.stack,
-        });
-        alert(`Failed to create Spotify playlist: ${error.message}`);
-      } else {
-        alert("Failed to create Spotify playlist. Please try again.");
-      }
+    } catch (error: any) {
+      alert(error?.message || "Failed to create Spotify playlist");
     } finally {
       setCreatingSpotify(false);
     }
