@@ -1,20 +1,57 @@
 // src/app/api/playlist/route.ts
 
-import { OpenAI } from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { GeneratedPlaylist, OpenAIError } from "@/types/playlist";
+import { OpenAI } from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 // Generate playlist using OpenAI
 export async function POST(req: NextRequest) {
-  const { description } = await req.json();
+  try {
+    // Log request headers to help diagnose session issues
+    console.error("🔍 DEBUG - Playlist API Request:", {
+      url: req.url,
+      method: req.method,
+      cookie: req.headers.get("cookie"),
+      authorization: req.headers.get("authorization"),
+      host: req.headers.get("host"),
+      origin: req.headers.get("origin"),
+      allHeaders: Object.fromEntries(req.headers.entries()),
+    });
 
-  if (!description) {
-    return NextResponse.json({ error: "Missing description" }, { status: 400 });
-  }
+    const session = await getServerSession(authOptions);
+    
+    // Log session state with more visibility
+    console.error("🔍 DEBUG - Session State:", {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      hasAccessToken: !!session?.accessToken,
+      userEmail: session?.user?.email,
+      sessionKeys: session ? Object.keys(session) : [],
+      fullSession: session, // Log the entire session object
+    });
 
-  const prompt = `
+    if (!session) {
+      console.error("❌ ERROR - No session found in playlist API route");
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const { description } = await req.json();
+
+    if (!description) {
+      return NextResponse.json(
+        { error: "Description is required" },
+        { status: 400 }
+      );
+    }
+
+    const prompt = `
 You are an auteur. A music expert who knows just the right thing to put on at the right time.
 You are fluent in jazz, hip-hop, rock, punk, pop — any form of music that has a soul. You're a historian and you can understand the undercurrents that connect different songs into a cohesive tapestry.
 
@@ -33,7 +70,6 @@ Do not include any commentary or formatting outside the JSON object.
 Make sure the songs are diverse, recognizable, and flow well together.
 `.trim();
 
-  try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],

@@ -2,7 +2,7 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
-import { Song, GeneratedPlaylist } from "@/types/playlist";
+import { Song } from "@/types/playlist";
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -72,7 +72,22 @@ export default function Home() {
   const { data: session } = useSession();
 
   const generatePlaylist = async () => {
+    if (!description.trim()) {
+      alert("Please enter a playlist description");
+      return;
+    }
+
+    // Log detailed session state
+    console.log("Detailed session state:", {
+      session,
+      expires: session?.expires,
+      user: session?.user,
+      hasAccessToken: !!session?.accessToken,
+      cookies: document.cookie.split(';').map(c => c.trim()),
+    });
+
     if (!session) {
+      console.error("No session available, redirecting to sign in");
       signIn("spotify");
       return;
     }
@@ -85,22 +100,40 @@ export default function Home() {
     setPlaylistName("");
 
     try {
-      const res = await fetch("/api/playlist", {
-        method: "POST",
-        body: JSON.stringify({ description }),
-        headers: { "Content-Type": "application/json" },
+      // Log session state before making the request
+      console.log("Session state before playlist generation:", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasAccessToken: !!session?.accessToken,
       });
-      const data = await res.json() as GeneratedPlaylist;
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to generate playlist");
+
+      const response = await fetch("/api/playlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Ensure cookies are sent
+        body: JSON.stringify({ description }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Playlist generation failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+          headers: Object.fromEntries(response.headers.entries()),
+        });
+        throw new Error(errorData.error || "Failed to generate playlist");
       }
 
+      const data = await response.json();
       setSongs(data.songs || []);
       setPlaylistName(data.playlistName || "");
       setPlaylistDescription(data.playlistDescription || "");
-    } catch {
-      alert("Failed to generate playlist. Please try again.");
+    } catch (err) {
+      console.error("Error generating playlist:", err);
+      alert(err instanceof Error ? err.message : "Failed to generate playlist");
     } finally {
       setLoading(false);
     }
@@ -117,6 +150,13 @@ export default function Home() {
     setNotFoundTracks([]);
 
     try {
+      // Log session state before making the request
+      console.log("Session state before Spotify playlist creation:", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasAccessToken: !!session?.accessToken,
+      });
+
       const res = await fetch("/api/spotify-playlist", {
         method: "POST",
         body: JSON.stringify({
@@ -139,6 +179,7 @@ export default function Home() {
       setNotFoundTracks(data.notFoundTracks || []);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to create Spotify playlist";
+      console.error("Error creating Spotify playlist:", error);
       alert(errorMessage);
     } finally {
       setCreatingSpotify(false);
