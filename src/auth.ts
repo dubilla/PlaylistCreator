@@ -2,7 +2,15 @@ import NextAuth from "next-auth";
 import Spotify from "next-auth/providers/spotify";
 import type { JWT } from "next-auth/jwt";
 import type { Session } from "next-auth";
-import type { Account } from "next-auth";
+import type { Account, Profile } from "next-auth";
+
+interface SpotifyProfile extends Profile {
+  id: string;
+  display_name: string;
+  email: string;
+  images?: Array<{ url: string }>;
+}
+
 console.log("NEXTAUTH_URL", process.env.NEXTAUTH_URL);
 export const authOptions = {
   providers: [
@@ -17,12 +25,12 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }: { token: JWT; account: Account | null; profile?: any }) {
+    async jwt({ token, account, profile }: { token: JWT; account: Account | null; profile?: Profile }) {
       if (account) {
         token.accessToken = account.access_token;
       }
       if (profile) {
-        token.id = profile.id;
+        token.id = (profile as SpotifyProfile).id;
       }
       return token;
     },
@@ -33,12 +41,13 @@ export const authOptions = {
       }
       return session;
     },
-    async profile(profile: any) {
+    async profile(profile: Profile) {
+      const spotifyProfile = profile as SpotifyProfile;
       return {
-        id: profile.id,
-        name: profile.display_name,
-        email: profile.email,
-        image: profile.images?.[0]?.url,
+        id: spotifyProfile.id,
+        name: spotifyProfile.display_name,
+        email: spotifyProfile.email,
+        image: spotifyProfile.images?.[0]?.url,
       };
     },
   },

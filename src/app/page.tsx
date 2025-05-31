@@ -229,12 +229,12 @@ export default function Home() {
           {notFoundTracks.length > 0 && (
             <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
               <h3 className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
-                Some tracks couldn't be found on Spotify:
+                Some tracks couldn&apos;t be found on Spotify:
               </h3>
               <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
                 {notFoundTracks.map((track, i) => (
                   <li key={i}>
-                    {track.artist} – "{track.title}"
+                    {track.artist} – &ldquo;{track.title}&rdquo;
                   </li>
                 ))}
               </ul>
@@ -250,7 +250,7 @@ export default function Home() {
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-gray-600 dark:text-gray-400 font-medium">{song.artist}</p>
-                        <h3 className="text-lg text-gray-800 dark:text-gray-200">"{song.title}"</h3>
+                        <h3 className="text-lg text-gray-800 dark:text-gray-200">&ldquo;{song.title}&rdquo;</h3>
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 text-right">
                         <div>{song.year}</div>

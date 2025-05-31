@@ -9,7 +9,7 @@ import {
   searchSpotifyTrack,
   addTracksToPlaylist,
 } from "@/lib/spotify";
-import { GeneratedPlaylist, Song, SpotifyPlaylistResponse, OpenAIError } from "@/types/playlist";
+import { GeneratedPlaylist, SpotifyPlaylistResponse, OpenAIError } from "@/types/playlist";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
