@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(response);
   } catch (error: unknown) {
     // Next.js Auth will give us a proper error response
-    if (error?.message?.includes("auth")) {
+    if (error instanceof Error && error.message.includes("auth")) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     // Spotify API errors will already be properly formatted
     return NextResponse.json(
-      { error: error?.message || "Failed to create Spotify playlist" },
+      { error: error instanceof Error ? error.message : "Failed to create Spotify playlist" },
       { status: 500 }
     );
   }
