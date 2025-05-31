@@ -11,8 +11,16 @@ export async function createSpotifyPlaylist(
   name: string,
   description: string
 ) {
+  if (!session.accessToken) {
+    throw new Error("No access token available");
+  }
+
+  if (!session.user?.id) {
+    throw new Error("No user ID available");
+  }
+
   const response = await fetch(
-    `https://api.spotify.com/v1/users/${session.user?.id}/playlists`,
+    `https://api.spotify.com/v1/users/${session.user.id}/playlists`,
     {
       method: "POST",
       headers: {
@@ -28,7 +36,10 @@ export async function createSpotifyPlaylist(
   );
 
   if (!response.ok) {
-    throw new Error("Failed to create playlist");
+    const errorData = await response.json().catch(() => null);
+    throw new Error(
+      `Failed to create playlist: ${errorData?.error?.message || response.statusText}`
+    );
   }
 
   return response.json();

@@ -33,6 +33,14 @@ export const authOptions = {
       }
       return session;
     },
+    async profile(profile: any) {
+      return {
+        id: profile.id,
+        name: profile.display_name,
+        email: profile.email,
+        image: profile.images?.[0]?.url,
+      };
+    },
   },
   pages: {
     signIn: "/",
