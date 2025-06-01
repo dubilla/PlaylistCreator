@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+// Removed: import { getServerSession } from "next-auth";
+// Removed: import { authOptions } from "@/auth";
+import { getAppSession } from "@/lib/session-manager"; // USE THIS
 import {
   createSpotifyPlaylist,
   searchSpotifyTrack,
@@ -10,58 +11,35 @@ import { GeneratedPlaylist, SpotifyPlaylistResponse } from "@/types/playlist";
 
 // Create playlist in Spotify
 export async function POST(req: NextRequest) {
-  let session;
+  try {
+    const session = await getAppSession(req); // USE THIS
 
-  const testSessionHeader = req.headers.get('x-test-session');
-  if (process.env.NODE_ENV === 'test' && testSessionHeader !== undefined) {
-    try {
-      session = testSessionHeader && testSessionHeader !== 'null' ? JSON.parse(testSessionHeader) : null;
-    } catch (e) {
-      console.error("Failed to parse x-test-session header in spotify-playlist:", e);
-      return NextResponse.json({ error: "Invalid x-test-session format" }, { status: 500 });
+    // Conditional logging for debug purposes
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("🔍 DEBUG - Spotify Playlist API Request Info:", { url: req.url, method: req.method });
+      console.error("🔍 DEBUG - Session State (from getAppSession):", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasAccessToken: !!(session as any)?.accessToken, // Cast if Session type needs it
+        userEmail: session?.user?.email,
+      });
     }
-  } else {
-    // Conditional logging for non-test environments can be added here if desired
-    session = await getServerSession(authOptions);
-  }
 
-  // Session validation logic from original code, now applied to 'session' variable
-  if (!session) {
-    // Log only if not a test or test header wasn't used to explicitly set null session
-    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && testSessionHeader === undefined)) {
-        console.error("Authentication required: No session provided.");
-    }
-    return NextResponse.json(
-      { error: "Authentication required" },
-      { status: 401 }
-    );
-  }
-
-  if (!session.user?.id) { // Also check for accessToken if it's used directly from session object later
-    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && testSessionHeader === undefined)) {
-        console.error("User ID not available in session.");
-    }
-    return NextResponse.json(
-      { error: "User ID not available" }, // Or a more generic "Unauthorized" or "Session data incomplete"
-      { status: 401 }
-    );
-  }
-  // Add check for accessToken if your Spotify lib functions require it directly from session object
-  if (!session.accessToken) {
-    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && testSessionHeader === undefined)) {
-        console.error("Access Token not available in session.");
-    }
-    return NextResponse.json(
-        { error: "Access Token not available" },
+    // Updated session validation to use the session from getAppSession
+    // Ensure your AppSession type (if defined) or casting handles accessToken and user.id
+    if (!session || !(session as any).accessToken || !session.user?.id) {
+      if (process.env.NODE_ENV !== 'test') { // Avoid excessive logging in tests for expected auth failures
+        console.error("❌ ERROR - Authentication required or user ID/access token missing. Session:", session ? "Exists but incomplete" : "Null");
+      }
+      return NextResponse.json(
+        { error: "Authentication required or user ID/access token missing" },
         { status: 401 }
-    );
-  }
+      );
+    }
 
-
-  try { // Start of the main try block for playlist creation logic
     const { playlistName, playlistDescription, songs } = await req.json() as GeneratedPlaylist;
 
-    if (!playlistName || !playlistDescription || !songs) {
+    if (!playlistName || !playlistDescription || !songs || !Array.isArray(songs) || songs.length === 0) { // Added more robust check
       return NextResponse.json(
         { error: "Missing required playlist data" },
         { status: 400 }
@@ -98,26 +76,58 @@ export async function POST(req: NextRequest) {
       await addTracksToPlaylist(session, playlist.id, trackUris);
     }
 
+    // Create Spotify playlist
+    // Ensure session object passed to Spotify functions is correctly typed/casted if necessary
+    const playlist = await createSpotifyPlaylist(
+      session as any, // Cast if necessary, prefer defining a proper AppSession type
+      playlistName,
+      playlistDescription
+    );
+
+    // Search for each track and collect URIs
+    const trackUris: string[] = [];
+    const notFoundTracks: { title: string; artist: string }[] = [];
+
+    for (const song of songs) {
+      try {
+        const track = await searchSpotifyTrack(session as any, song.title, song.artist); // Cast session
+        if (track && track.id) { // Assuming searchSpotifyTrack returns object with id
+          trackUris.push(`spotify:track:${track.id}`);
+        } else {
+          notFoundTracks.push({ title: song.title, artist: song.artist });
+        }
+      } catch (searchError) {
+        if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && !(searchError instanceof Error && searchError.message.includes("Intentional test error")))) {
+            console.error(`Error searching for track ${song.title} by ${song.artist}:`, searchError);
+        }
+        notFoundTracks.push({ title: song.title, artist: song.artist });
+      }
+    }
+
+    // Add tracks to playlist
+    if (trackUris.length > 0) {
+      await addTracksToPlaylist(session as any, playlist.id, trackUris); // Cast session
+    }
+
     const response: SpotifyPlaylistResponse = {
-      playlistUrl: playlist.external_urls.spotify, // Consider optional chaining: playlist.external_urls?.spotify
-      notFoundTracks: notFoundTracks.length > 0 ? notFoundTracks : undefined, // Set to undefined if empty
+      playlistUrl: playlist.external_urls?.spotify, // Optional chaining
+      notFoundTracks: notFoundTracks.length > 0 ? notFoundTracks : undefined,
     };
 
     return NextResponse.json(response);
-  } catch (error: unknown) { // This catch is for errors within the playlist creation logic
-    // Log general processing error only in non-test or if it's not an intentional test error
-    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && !(error instanceof Error && error.message.includes("Intentional test error")))) {
-        console.error("Error processing Spotify playlist request:", error);
+  } catch (error: unknown) {
+    // Log the error with more details
+    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && !(error instanceof Error && error.message.includes("Intentional test error")))){
+        console.error("❌ ERROR - Failed to process /api/spotify-playlist request:", error);
     }
 
-    // Specific error messages based on error type
-    if (error instanceof SyntaxError) { // From await req.json() if body is malformed
-        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    if (error instanceof SyntaxError && error.message.toLowerCase().includes("json")) { // More specific check for JSON SyntaxError
+        return NextResponse.json({ error: "Invalid request body: Malformed JSON." }, { status: 400 });
     }
-    // Example: Check for errors from your Spotify lib functions if they throw custom errors or specific messages
-    // For now, using a generic message for other errors from this block
+    // Handle other specific errors if needed, e.g., from Spotify library calls if they throw typed errors
+    // For now, a generic error message for other failures
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to process Spotify playlist request" },
+      { error: error instanceof Error ? error.message : "Failed to create Spotify playlist" },
       { status: 500 }
     );
   }

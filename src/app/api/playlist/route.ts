@@ -1,8 +1,9 @@
 // src/app/api/playlist/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+// Removed: import { getServerSession } from "next-auth";
+// Removed: import { authOptions } from "@/auth";
+import { getAppSession } from "@/lib/session-manager"; // Using alias
 import { GeneratedPlaylist, OpenAIError } from "@/types/playlist";
 import { OpenAI } from "openai";
 
@@ -10,24 +11,10 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 // Generate playlist using OpenAI
 export async function POST(req: NextRequest) {
-  let session; // Declare session variable
-
-  // Check for a special header indicating a test environment and providing session data
-  const testSessionHeader = req.headers.get('x-test-session');
-
-  if (process.env.NODE_ENV === 'test' && testSessionHeader !== undefined) {
-    try {
-      // If header is empty string or "null", parse to null, otherwise parse as JSON
-      session = testSessionHeader && testSessionHeader !== 'null' ? JSON.parse(testSessionHeader) : null;
-    } catch (e) {
-      console.error("Failed to parse x-test-session header:", e);
-      return NextResponse.json({ error: "Invalid x-test-session format" }, { status: 500 });
-    }
-  } else {
-    // Production path: use actual getServerSession
-    // Conditional logging for non-test environments or when not using the test header
-    if (process.env.NODE_ENV !== 'test') {
-      console.error("🔍 DEBUG - Playlist API Request (Non-Test):", {
+  try {
+    // Keep existing logging for request details, or move to getAppSession if preferred
+    if (process.env.NODE_ENV !== 'test') { // Conditional logging for non-test environments
+        console.error("🔍 DEBUG - Playlist API Request:", {
         url: req.url,
         method: req.method,
         cookie: req.headers.get("cookie"),
@@ -35,40 +22,37 @@ export async function POST(req: NextRequest) {
         host: req.headers.get("host"),
         origin: req.headers.get("origin"),
         allHeaders: Object.fromEntries(req.headers.entries()),
-      });
-    }
-    session = await getServerSession(authOptions);
-    if (process.env.NODE_ENV !== 'test') {
-      console.error("🔍 DEBUG - Session State (Non-Test):", {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        hasAccessToken: !!session?.accessToken,
-        userEmail: session?.user?.email,
-        sessionKeys: session ? Object.keys(session) : [],
-        fullSession: session,
-      });
-    }
-  }
-
-  // Existing session check, adjusted for the new session variable
-  // The original code used `if (!session)` which is fine.
-  // For testing, accessToken and user.id are primary concerns for this route's logic.
-  if (!session?.accessToken || !session?.user?.id) { // Check for specific properties needed
-    // Conditional logging for authentication failure
-    if (process.env.NODE_ENV !== 'test' || (process.env.NODE_ENV === 'test' && testSessionHeader === undefined)) {
-        console.error("❌ ERROR - Authentication failed or session data incomplete in playlist API route:", {
-            hasSession: !!session,
-            hasAccessToken: !!session?.accessToken,
-            hasUserId: !!session?.user?.id,
         });
     }
-    return NextResponse.json(
-      { error: "User not authenticated or session data incomplete" }, // Updated error message
-      { status: 401 }
-    );
-  }
 
-  try { // Added try block for the main logic post-session retrieval
+    const session = await getAppSession(req); // New session retrieval
+
+    // Log session state from getAppSession (can be conditional)
+    if (process.env.NODE_ENV !== 'test') {
+        console.error("🔍 DEBUG - Session State (from getAppSession):", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasAccessToken: !!(session as any)?.accessToken, // Cast if accessToken not in default Session type
+        userEmail: session?.user?.email,
+        sessionKeys: session ? Object.keys(session) : [],
+        // fullSession: session, // Be cautious logging full session in production
+        });
+    }
+
+    // Ensure your Session type used by getAppSession and expected here includes accessToken and user.id
+    // The actual type for session in next-auth.d.ts should include these.
+    // If using the default Session type from next-auth, casting (as any) might be needed for accessToken.
+    // It's better to have a custom Session type defined in next-auth.d.ts.
+    if (!session || !(session as any).accessToken || !session.user?.id) {
+      if (process.env.NODE_ENV !== 'test') { // Avoid excessive logging in tests for expected auth failures
+        console.error("❌ ERROR - No session, accessToken, or user.id found in playlist API route");
+      }
+      return NextResponse.json(
+        { error: "Authentication required" }, // Simplified error message
+        { status: 401 }
+      );
+    }
+
     const { description } = await req.json();
 
     if (!description) {
