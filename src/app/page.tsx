@@ -1,60 +1,63 @@
 import Link from 'next/link';
 
 export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-slate-900 text-gray-200 flex flex-col items-center justify-center p-6 selection:bg-indigo-500 selection:text-white">
-      <main className="max-w-2xl w-full text-center space-y-8">
-        <header>
-          <h1 className="text-5xl font-bold text-indigo-400 mb-3">
-            🎶 PlaylistGenie
-          </h1>
-          <p className="text-2xl text-gray-300">
-            Your Vibe, Pressed to Tape
+    return (
+      <main className="bg-[#1f1b2e] text-[#f3e7d6] min-h-screen font-serif">
+        {/* Hero */}
+        <header className="px-6 py-20 text-center">
+          <h1 className="text-5xl font-bold tracking-tight mb-4">PlaylistGenie</h1>
+          <p className="text-xl italic text-[#e0d2be] max-w-2xl mx-auto">
+            Describe your vibe. We'll summon your soundtrack.
           </p>
+          <div className="mt-8">
+            <Link 
+              href="/create"
+              className="inline-block bg-[#e86f39] hover:bg-[#e85f20] text-white font-medium px-6 py-3 rounded-md text-lg"
+            >
+              Get Started
+            </Link>
+          </div>
         </header>
-
-        <section className="text-lg text-gray-300">
-          <p>
-            PlaylistGenie is a retro-inspired music tool that turns your mood into a mixtape—instantly.
-            No more endless scrolling or decision fatigue. Just pure, personalized vibes ready for your ears.
-          </p>
+  
+        {/* How it Works */}
+        <section className="px-6 py-16 bg-[#2e293e]">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl font-semibold mb-6">How It Works</h2>
+            <ol className="space-y-4 text-left text-lg list-decimal list-inside">
+              <li><strong>Describe your vibe:</strong> Type anything—"sunset rooftop wine night" or "underground club in 1992 Berlin."</li>
+              <li><strong>Let us work the magic:</strong> We use language models to interpret the feeling, era, and energy.</li>
+              <li><strong>Get a curated playlist:</strong> You'll get a mix of iconic and obscure songs that match your mood.</li>
+            </ol>
+          </div>
         </section>
-
-        <section className="bg-slate-800 p-6 rounded-lg shadow-xl">
-          <h2 className="text-3xl font-semibold text-indigo-300 mb-4">
-            ✨ What Makes It Different?
-          </h2>
-          <ul className="space-y-3 text-left text-gray-300 list-disc list-inside pl-4">
-            <li>
-              <span className="font-semibold text-indigo-400">Mood-Powered Playlists:</span> Simply describe your desired atmosphere, and let our AI curate the perfect soundtrack.
-            </li>
-            <li>
-              <span className="font-semibold text-indigo-400">Nostalgic Charm:</span> We embrace the golden era of mixtapes with a fun, retro-inspired interface.
-            </li>
-            <li>
-              <span className="font-semibold text-indigo-400">Instant Gratification:</span> Get your playlist generated in seconds, not hours.
-            </li>
-            <li>
-              <span className="font-semibold text-indigo-400">Spotify Integration:</span> Seamlessly create and save your new favorite playlists directly to your Spotify account.
-            </li>
+  
+        {/* Example Playlist */}
+        <section className="px-6 py-16 text-center">
+          <h2 className="text-3xl font-semibold mb-4">A Retro Night Out</h2>
+          <p className="text-[#c9bcb2] mb-6 max-w-md mx-auto">
+            Here's what a night of neon lights and leather jackets might sound like.
+          </p>
+          <ul className="text-lg space-y-1">
+            <li>Don't You Want Me – The Human League</li>
+            <li>Just Can't Get Enough – Depeche Mode</li>
+            <li>Let's Hear It for the Boy – Deniece Williams</li>
+            <li>Obsession – Animotion</li>
+            <li>Electric Avenue – Eddy Grant</li>
           </ul>
         </section>
-
-        <section>
-          <p className="text-xl italic text-indigo-300 mb-6">
-            Describe your vibe. We’ll summon your soundtrack.
+  
+        {/* About */}
+        <section className="px-6 py-16 bg-[#2e293e] text-center">
+          <h2 className="text-3xl font-semibold mb-4">Not Just Another AI App</h2>
+          <p className="text-[#c9bcb2] max-w-2xl mx-auto text-lg">
+            PlaylistGenie is built for the music nerds who still make playlists like they're burning a CD. It's less about algorithms, more about feeling. Less generic recommendations, more weird gems you didn't know you needed.
           </p>
-          <Link href="/create" passHref>
-            <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-8 rounded-lg text-xl shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:scale-105">
-              Create Your Mixtape
-            </button>
-          </Link>
         </section>
+  
+        {/* Footer */}
+        <footer className="px-6 py-10 text-center text-sm text-gray-500">
+          &copy; {new Date().getFullYear()} PlaylistGenie — built with vibes.
+        </footer>
       </main>
-
-      <footer className="mt-12 text-center text-gray-500">
-        <p>&copy; {new Date().getFullYear()} PlaylistGenie. All rights reserved.</p>
-      </footer>
-    </div>
-  );
+    );
 }
