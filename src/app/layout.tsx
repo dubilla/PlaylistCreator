@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spotify Playlist Generator",
-  description: "Generate playlists using AI and save them to Spotify",
+  title: "PlaylistGenie — Your Vibe, Pressed to Tape",
+  description: "Describe your vibe. We’ll summon your soundtrack.",
 };
 
 export default function RootLayout({
